@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GeoVibe AI | Environmental Intelligence</title>
+  <meta name="description" content="Satellite-based environmental monitoring and change detection using AI/ML.">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="app-shell">
+    <header>
+      <a class="brand" href="#geoPicker" aria-label="GeoVibe AI dashboard">
+        <span class="brand-mark" role="img" aria-label="Earth">🌍</span>
+        <span>GeoVibe <b>AI</b><small>Environmental intelligence</small></span>
+      </a>
+      <div class="system-status"><span class="pulse"></span><span>Sentinel-2 live</span><b>GLOBAL</b></div>
+    </header>
+
+    <main class="dashboard-grid">
+      <aside class="left-rail" id="geoPicker">
+        <section class="panel control-panel">
+          <div class="panel-heading"><p>Analysis controls</p></div>
+          <div class="aoi-control">
+            <label class="aoi-field" for="location">
+              <span>Area of interest</span>
+              <input id="location" value="New Delhi, India" placeholder="Search any place or coordinates" autocomplete="off" aria-autocomplete="list" aria-controls="searchResults">
+              <small class="field-hint" id="coverageHint">Search worldwide or move the map pin</small>
+            </label>
+            <div class="search-results" id="searchResults" role="listbox" aria-label="Location suggestions" hidden></div>
+          </div>
+          <div class="mini-map-toolbar"><span>Target map</span><b id="coordinates">28.6139&deg; N / 77.2090&deg; E</b></div>
+          <div class="geo-stage">
+            <div id="worldMap" aria-label="Interactive world map"></div>
+            <div class="map-help"><i></i> Click or drag pin</div>
+          </div>
+          <div class="date-grid">
+            <label><span>Baseline date</span><input id="beforeDate" type="date" value="2024-03-15"></label>
+            <label><span>Comparison date</span><input id="afterDate" type="date" value="2026-03-15"></label>
+          </div>
+          <button class="primary" id="analyzeBtn"><span>Run analysis</span><b>&rarr;</b></button>
+        </section>
+
+        <section class="panel indices">
+          <div class="panel-heading"><p>Spectral indices</p><span>LIVE</span></div>
+          <div class="index-row ndvi-index"><span><i></i>NDVI <small>Vegetation</small></span><b id="ndvi">--</b></div>
+          <div class="index-row ndwi-index"><span><i></i>NDWI <small>Surface water</small></span><b id="ndwi">--</b></div>
+        </section>
+
+        <section class="panel recommendations-card analysis-guide">
+          <div class="panel-heading"><p>How to analyze</p><span>QUICK GUIDE</span></div>
+          <div class="analysis-guide-list">
+            <div class="guide-step"><b>01</b><span><strong>Choose a focused date range</strong><small>Use 3-36 months. Sentinel-2 begins in 2015; comparison dates cannot be in the future.</small></span></div>
+            <div class="guide-step"><b>02</b><span><strong>Allow for capture matching</strong><small>Clear imagery must exist within ±40 days. If unavailable, shift the selected date by 1-2 months.</small></span></div>
+            <div class="guide-step"><b>03</b><span><strong>Position, run, then interpret</strong><small>Search or drag the pin. Solid lines are observations; dashed lines are six-month projections.</small></span></div>
+          </div>
+        </section>
+
+      </aside>
+
+      <section class="center-stage">
+        <article class="panel map-card" id="changeLab">
+          <div class="card-head">
+            <div><p class="section-kicker">Change detection</p><h2>Satellite comparison</h2></div>
+            <div class="legend"><span><i class="forest"></i>Vegetation</span><span><i class="water"></i>Water</span></div>
+          </div>
+          <div class="maps">
+            <figure><canvas id="beforeMap" width="720" height="480"></canvas><figcaption><b>Baseline</b><span id="beforeCaption">15 Mar 2024</span></figcaption></figure>
+            <figure><canvas id="afterMap" width="720" height="480"></canvas><figcaption><b>Latest</b><span id="afterCaption">15 Mar 2026</span></figcaption></figure>
+          </div>
+          <div class="upload-row"><span id="satelliteSource">Loading Copernicus Sentinel-2 observations...</span></div>
+        </article>
+
+        <article class="panel chart-card" id="forecast">
+          <div class="card-head trajectory-head">
+            <div class="trajectory-title">
+              <label for="trajectoryMetric">Trajectory signal</label>
+              <select id="trajectoryMetric">
+                <option value="all">All indices</option>
+                <option value="ndvi">NDVI / Vegetation</option>
+                <option value="ndwi">NDWI / Water</option>
+              </select>
+              <h2 id="trajectoryTitle">Environmental index trajectory</h2>
+            </div>
+            <div class="trajectory-meta">
+              <div class="trajectory-tools">
+                <span class="pan-hint" id="trajectoryPanHint">Drag to pan</span>
+                <div class="chart-zoom" aria-label="Trajectory graph zoom controls">
+                  <button id="trajectoryZoomOut" type="button" aria-label="Zoom out trajectory graph" title="Zoom out">&minus;</button>
+                  <button id="trajectoryZoomIn" type="button" aria-label="Zoom in trajectory graph" title="Zoom in">+</button>
+                </div>
+              </div>
+              <div class="chart-legend" id="chartLegend"></div>
+            </div>
+          </div>
+          <svg id="trend" viewBox="0 0 900 300" role="img" aria-labelledby="trajectoryTitle"></svg>
+        </article>
+      </section>
+
+      <aside class="right-rail">
+        <section class="panel alerts-card">
+          <div class="panel-heading"><p>AI-assisted signal insights</p><span class="count" id="alertCount">0</span></div>
+          <h2>Susceptibility outlook</h2>
+          <div id="alerts"></div>
+        </section>
+
+        <section class="panel confidence-card">
+          <div class="confidence-head"><span>Analysis coverage</span><strong id="modelConfidence">--%</strong></div>
+          <div class="model-confidence-track" role="progressbar" aria-label="Analysis coverage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="modelConfidenceBar"></span></div>
+          <div class="confidence-scale"><span>0%</span><span>50%</span><span>100%</span></div>
+        </section>
+
+        <section class="panel developers-card">
+          <div class="panel-heading"><p>Project developers</p><span>TEAM</span></div>
+          <div class="developer-list">
+            <div class="developer"><span>Aditya Kundliya</span><a href="https://www.linkedin.com/in/aditya-kundliya-3ba57b371/" target="_blank" rel="noopener noreferrer" aria-label="Aditya Kundliya on LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.4 7.7H2V22h3.4V7.7ZM3.7 2A2 2 0 1 0 3.7 6a2 2 0 0 0 0-4ZM22 13.8c0-4.3-2.3-6.3-5.4-6.3-2.5 0-3.6 1.4-4.2 2.3V7.7H9V22h3.4v-7.1c0-1.9.4-3.7 2.7-3.7 2.3 0 2.3 2.1 2.3 3.8v7H22v-8.2Z"/></svg></a></div>
+            <div class="developer"><span>Himanshi Saxena</span><a href="https://www.linkedin.com/in/himanshi-saxena-671651380/" target="_blank" rel="noopener noreferrer" aria-label="Himanshi Saxena on LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.4 7.7H2V22h3.4V7.7ZM3.7 2A2 2 0 1 0 3.7 6a2 2 0 0 0 0-4ZM22 13.8c0-4.3-2.3-6.3-5.4-6.3-2.5 0-3.6 1.4-4.2 2.3V7.7H9V22h3.4v-7.1c0-1.9.4-3.7 2.7-3.7 2.3 0 2.3 2.1 2.3 3.8v7H22v-8.2Z"/></svg></a></div>
+            <div class="developer"><span>Prashant Mishra</span><a href="https://www.linkedin.com/in/prashant-mishra-53951037b/" target="_blank" rel="noopener noreferrer" aria-label="Prashant Mishra on LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.4 7.7H2V22h3.4V7.7ZM3.7 2A2 2 0 1 0 3.7 6a2 2 0 0 0 0-4ZM22 13.8c0-4.3-2.3-6.3-5.4-6.3-2.5 0-3.6 1.4-4.2 2.3V7.7H9V22h3.4v-7.1c0-1.9.4-3.7 2.7-3.7 2.3 0 2.3 2.1 2.3 3.8v7H22v-8.2Z"/></svg></a></div>
+            <div class="developer"><span>Shweta Prasad</span><a href="https://www.linkedin.com/in/shweta-prasad-961509378/" target="_blank" rel="noopener noreferrer" aria-label="Shweta Prasad on LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.4 7.7H2V22h3.4V7.7ZM3.7 2A2 2 0 1 0 3.7 6a2 2 0 0 0 0-4ZM22 13.8c0-4.3-2.3-6.3-5.4-6.3-2.5 0-3.6 1.4-4.2 2.3V7.7H9V22h3.4v-7.1c0-1.9.4-3.7 2.7-3.7 2.3 0 2.3 2.1 2.3 3.8v7H22v-8.2Z"/></svg></a></div>
+            <div class="developer"><span>Bharat Akhand</span><a href="https://www.linkedin.com/in/bharatakhand/" target="_blank" rel="noopener noreferrer" aria-label="Bharat Akhand on LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.4 7.7H2V22h3.4V7.7ZM3.7 2A2 2 0 1 0 3.7 6a2 2 0 0 0 0-4ZM22 13.8c0-4.3-2.3-6.3-5.4-6.3-2.5 0-3.6 1.4-4.2 2.3V7.7H9V22h3.4v-7.1c0-1.9.4-3.7 2.7-3.7 2.3 0 2.3 2.1 2.3 3.8v7H22v-8.2Z"/></svg></a></div>
+            <div class="developer"><span>Shraddha Ashish Gulve</span><a href="https://www.linkedin.com/in/shraddha-gulve-3458a32b1/" target="_blank" rel="noopener noreferrer" aria-label="Shraddha Ashish Gulve on LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.4 7.7H2V22h3.4V7.7ZM3.7 2A2 2 0 1 0 3.7 6a2 2 0 0 0 0-4ZM22 13.8c0-4.3-2.3-6.3-5.4-6.3-2.5 0-3.6 1.4-4.2 2.3V7.7H9V22h3.4v-7.1c0-1.9.4-3.7 2.7-3.7 2.3 0 2.3 2.1 2.3 3.8v7H22v-8.2Z"/></svg></a></div>
+          </div>
+        </section>
+
+      </aside>
+    </main>
+
+    <footer class="quote-ticker" aria-label="Earth observation perspectives">
+      <div class="ticker-track">
+        <div class="ticker-group">
+          <span>Every pixel is a record of change.</span><i></i>
+          <span>Healthy landscapes leave measurable signals.</span><i></i>
+          <span>Observe the past. Read the present. Anticipate the next shift.</span><i></i>
+          <span>From orbit, patterns become evidence.</span><i></i>
+          <span>Change is visible before it becomes obvious.</span><i></i>
+          <span>Better decisions begin with better observations.</span><i></i>
+        </div>
+        <div class="ticker-group" aria-hidden="true">
+          <span>Every pixel is a record of change.</span><i></i>
+          <span>Healthy landscapes leave measurable signals.</span><i></i>
+          <span>Observe the past. Read the present. Anticipate the next shift.</span><i></i>
+          <span>From orbit, patterns become evidence.</span><i></i>
+          <span>Change is visible before it becomes obvious.</span><i></i>
+          <span>Better decisions begin with better observations.</span><i></i>
+        </div>
+      </div>
+    </footer>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/app.js"></script>
+</body>
+</html>
